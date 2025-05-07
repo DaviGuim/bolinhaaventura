@@ -1,0 +1,99 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+  }
+  
+  body {
+    background: #faf8ef;
+    padding: 20px;
+  }
+  
+  .container {
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  
+  header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  
+  h1 {
+    font-size: 2.5rem;
+    color: #776e65;
+  }
+  
+  .scores {
+    display: flex;
+    gap: 10px;
+  }
+  
+  .score-box {
+    background: #bbada0;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 5px;
+    text-align: center;
+  }
+  
+  .score-box span:first-child {
+    font-size: 0.8rem;
+    display: block;
+  }
+  
+  #game-board {
+    width: 100%;
+    aspect-ratio: 1/1;
+    background: #bbada0;
+    border-radius: 6px;
+    padding: 15px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+  
+  .tile {
+    background: #cdc1b4;
+    border-radius: 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2rem;
+    font-weight: bold;
+    color: #776e65;
+  }
+  
+  .tile-2 { background: #eee4da; }
+  .tile-4 { background: #ede0c8; }
+  .tile-8 { background: #f2b179; color: white; }
+  .tile-16 { background: #f59563; color: white; }
+  .tile-32 { background: #f67c5f; color: white; }
+  .tile-64 { background: #f65e3b; color: white; }
+  .tile-128 { background: #edcf72; color: white; font-size: 1.5rem; }
+  .tile-256 { background: #edcc61; color: white; font-size: 1.5rem; }
+  .tile-512 { background: #edc850; color: white; font-size: 1.5rem; }
+  .tile-1024 { background: #edc53f; color: white; font-size: 1.2rem; }
+  .tile-2048 { background: #edc22e; color: white; font-size: 1.2rem; }
+  
+  .controls {
+    text-align: center;
+  }
+  
+  #new-game {
+    background: #8f7a66;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  
+  #new-game:hover {
+    background: #9f8b77;
+  }
