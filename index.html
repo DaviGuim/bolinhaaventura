@@ -152,7 +152,7 @@
     <input type="number" id="answer-input" placeholder="Your answer">
     <button id="submit-answer">Submit</button>
   </div>
-  <a href="https://forms.gle/mKLk6BJb2aWG7YdH9" id="form-link" target="_blank">Form Link</a>
+  <a href="https://forms.gle/mKLk6BJb2aWG7YdH9" id="form-link" target="_blank">Avalie nosso jogo</a>
 
   <script>
     const canvas = document.getElementById('game');
@@ -229,7 +229,8 @@
     let bombs = [];
     const bombRadius = 15;
     let bombSpawnTimer = 0;
-    const bombSpawnInterval = 150; // frames between bomb spawns
+    const bombSpawnInterval = 40; // frames between bomb spawns
+    let maxBombsOnScreen = 3;
 
     // Current math question
     let currentQuestion = null;
@@ -369,6 +370,18 @@
           context.arc(cloudX + 15, cloudY + 10, 15, 0, Math.PI * 2);
           context.fill();
         }
+        //mais bomba
+        if (score > 100 && maxBombsOnScreen < 5) {
+    maxBombsOnScreen = 5;
+    bombSpawnInterval = 60; // Opcional: aumenta frequência
+}
+if (score > 300 && maxBombsOnScreen < 8) {
+    maxBombsOnScreen = 8;
+    bombSpawnInterval = 40; // Bombas ainda mais frequentes
+}
+if (score > 500 && maxBombsOnScreen < 12) {
+    maxBombsOnScreen = 12; // Modo INSANO
+}
 
         // Apply gravity
         player.dy += gravity;
@@ -441,14 +454,14 @@
 
         // Spawn bombs
         bombSpawnTimer++;
-        if (bombSpawnTimer >= bombSpawnInterval) {
-          bombSpawnTimer = 0;
-          bombs.push({
-            x: random(bombRadius, canvas.width - bombRadius),
-            y: -bombRadius,
-            dy: random(2, 4)
-          });
-        }
+         if (bombSpawnTimer >= bombSpawnInterval && bombs.length < maxBombsOnScreen) {
+         bombSpawnTimer = 0;
+         bombs.push({
+         x: random(bombRadius, canvas.width - bombRadius),
+         y: -bombRadius,
+        dy: random(2, 4)
+        });
+}
 
         // Update and draw bombs
         for (let i = bombs.length - 1; i >= 0; i--) {
