@@ -61,6 +61,13 @@
       color: #333;
     }
 
+    #lives {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 20px;
+    }
+
     #game-over {
       position: absolute;
       top: 50%;
@@ -83,10 +90,52 @@
       border-radius: 5px;
       cursor: pointer;
     }
+
+    #math-question {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      display: none;
+    }
+
+    #answer-input {
+      padding: 8px;
+      margin: 10px 0;
+      width: 100px;
+    }
+
+    #submit-answer {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    #form-link {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: #2196F3;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 5px;
+      text-decoration: none;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
   <div id="score">Score: 0</div>
+  <div id="lives">❤️❤️</div>
   <canvas width="375" height="667" id="game"></canvas>
   <div id="controls">
     <button class="control-btn" id="left-btn">←</button>
@@ -97,24 +146,39 @@
     <p id="final-score">Score: 0</p>
     <button id="restart-btn">Play Again</button>
   </div>
+  <div id="math-question">
+    <h3>Math Question</h3>
+    <p id="question-text"></p>
+    <input type="number" id="answer-input" placeholder="Your answer">
+    <button id="submit-answer">Submit</button>
+  </div>
+  <a href="https://forms.gle/mKLk6BJb2aWG7YdH9" id="form-link" target="_blank">Form Link</a>
 
   <script>
     const canvas = document.getElementById('game');
     const context = canvas.getContext('2d');
     const scoreElement = document.getElementById('score');
+    const livesElement = document.getElementById('lives');
     const gameOverElement = document.getElementById('game-over');
     const finalScoreElement = document.getElementById('final-score');
     const restartBtn = document.getElementById('restart-btn');
     const leftBtn = document.getElementById('left-btn');
     const rightBtn = document.getElementById('right-btn');
+    const mathQuestionElement = document.getElementById('math-question');
+    const questionTextElement = document.getElementById('question-text');
+    const answerInputElement = document.getElementById('answer-input');
+    const submitAnswerBtn = document.getElementById('submit-answer');
+    const formLink = document.getElementById('form-link');
 
     // Game state
     let score = 0;
     let highestY = 0;
     let gameRunning = true;
+    let lives = 2;
+    let mathQuestionActive = false;
 
     // Platform settings
-    const platformWidth = 65;
+    const platformWidth = 60;
     const platformHeight = 20;
     const platformStart = canvas.height - 50;
 
@@ -124,8 +188,10 @@
     const bounceVelocity = -8;
 
     // Platform spacing
-    let minPlatformSpace = 60;
-    let maxPlatformSpace = 90 ;
+    let minPlatformSpace = 30;
+    let maxPlatformSpace = 70;
+    minPlatformSpace += 0.5;
+    maxPlatformSpace += 0.5;
 
     // Platforms array with the first platform at the bottom
     let platforms = [{
@@ -159,6 +225,16 @@
       dy: 0
     };
 
+    // Bombs array
+    let bombs = [];
+    const bombRadius = 15;
+    let bombSpawnTimer = 0;
+    const bombSpawnInterval = 150; // frames between bomb spawns
+
+    // Current math question
+    let currentQuestion = null;
+    let correctAnswer = null;
+
     // Player direction and key state
     let playerDir = 0;
     let keydown = false;
@@ -171,9 +247,47 @@
     const playerImg = new Image();
     playerImg.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MCA0MCI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNTQzMzUiLz48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIxNSIgZmlsbD0iI2ZmY2NiYiIvPjxjaXJjbGUgY3g9IjE0IiBjeT0iMTUiIHI9IjMiIGZpbGw9IiMzMzMiLz48Y2lyY2xlIGN4PSIyNiIgY3k9IjE1IiByPSIzIiBmaWxsPSIjMzMzIi8+PHBhdGggZD0iTTE0IDI1IHE2IDQgMTIgMCIgc3Ryb2tlPSIjMzMzIiBzdHJva2Utd2lkdGg9IjIiIGZpbGw9Im5vbmUiLz48L3N2Zz4=';
 
+    const bombImg = new Image();
+    bombImg.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMCAzMCI+PGNpcmNsZSBjeD0iMTUiIGN5PSIxNSIgcj0iMTUiIGZpbGw9IiMzMzMiLz48Y2lyY2xlIGN4PSIxNSIgY3k9IjE1IiByPSIxMCIgZmlsbD0iI2U1NDMzNSIvPjxwYXRoIGQ9Ik03IDcgTDIzIDIzIE03IDIzIEwyMyA3IiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMiIvPjwvc3ZnPg==';
+
     // Helper functions
     function random(min, max) {
       return Math.random() * (max - min) + min;
+    }
+
+    function generateMathQuestion() {
+      const num1 = Math.floor(random(1, 10));
+      const num2 = Math.floor(random(1, 10));
+      const operators = ['+', '-', '*'];
+      const operator = operators[Math.floor(random(0, operators.length))];
+      
+      let question = `${num1} ${operator} ${num2} = ?`;
+      let answer;
+      
+      switch(operator) {
+        case '+': answer = num1 + num2; break;
+        case '-': answer = num1 - num2; break;
+        case '*': answer = num1 * num2; break;
+      }
+      
+      return { question, answer };
+    }
+
+    function showMathQuestion() {
+      mathQuestionActive = true;
+      const questionData = generateMathQuestion();
+      currentQuestion = questionData.question;
+      correctAnswer = questionData.answer;
+      
+      questionTextElement.textContent = currentQuestion;
+      mathQuestionElement.style.display = 'block';
+      answerInputElement.value = '';
+      answerInputElement.focus();
+    }
+
+    function hideMathQuestion() {
+      mathQuestionActive = false;
+      mathQuestionElement.style.display = 'none';
     }
 
     function gameOver() {
@@ -185,9 +299,12 @@
     function resetGame() {
       score = 0;
       highestY = 0;
+      lives = 2;
+      livesElement.textContent = '❤️❤️';
       scoreElement.textContent = `Score: ${Math.floor(score)}`;
       gameOverElement.style.display = 'none';
       gameRunning = true;
+      mathQuestionActive = false;
       
       // Reset platforms
       platforms = [{
@@ -218,6 +335,10 @@
       player.dy = 0;
       prevPlayerY = player.y;
       
+      // Reset bombs
+      bombs = [];
+      bombSpawnTimer = 0;
+      
       // Reset platform spacing
       minPlatformSpace = 15;
       maxPlatformSpace = 20;
@@ -230,126 +351,211 @@
       if (!gameRunning) return;
       
       requestAnimationFrame(loop);
-      score += 0.05; // score sobe com o tempo
-      scoreElement.textContent = `Score: ${Math.floor(score)}`;
-      context.clearRect(0, 0, canvas.width, canvas.height);
       
-      // Draw background elements (clouds)
-      context.fillStyle = 'rgba(255, 255, 255, 0.7)';
-      for (let i = 0; i < 5; i++) {
-        const cloudX = (i * 150 + score * 0.2) % (canvas.width + 100) - 50;
-        const cloudY = (i * 80) % canvas.height;
-        context.beginPath();
-        context.arc(cloudX, cloudY, 20, 0, Math.PI * 2);
-        context.arc(cloudX + 15, cloudY - 10, 15, 0, Math.PI * 2);
-        context.arc(cloudX + 30, cloudY, 20, 0, Math.PI * 2);
-        context.arc(cloudX + 15, cloudY + 10, 15, 0, Math.PI * 2);
-        context.fill();
-      }
-
-      // Apply gravity
-      player.dy += gravity;
-
-      // Update score based on how high the player has gone
-      if (player.y < highestY) {
-        highestY = player.y;
-        score = -highestY / 10;
+      if (!mathQuestionActive) {
+        score += 0.05; // score increases over time
         scoreElement.textContent = `Score: ${Math.floor(score)}`;
-      }
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw background elements (clouds)
+        context.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        for (let i = 0; i < 5; i++) {
+          const cloudX = (i * 150 + score * 0.2) % (canvas.width + 100) - 50;
+          const cloudY = (i * 80) % canvas.height;
+          context.beginPath();
+          context.arc(cloudX, cloudY, 20, 0, Math.PI * 2);
+          context.arc(cloudX + 15, cloudY - 10, 15, 0, Math.PI * 2);
+          context.arc(cloudX + 30, cloudY, 20, 0, Math.PI * 2);
+          context.arc(cloudX + 15, cloudY + 10, 15, 0, Math.PI * 2);
+          context.fill();
+        }
 
-      // Game over if player falls off the bottom
-      if (player.y > canvas.height + player.radius) {
-        gameOver();
-        return;
-      }
+        // Apply gravity
+        player.dy += gravity;
 
-      // Camera movement when player reaches middle of screen
-      if (player.y < canvas.height / 2 && player.dy < 0) {
-        platforms.forEach(platform => {
-          platform.y += -player.dy;
-        });
+        // Update score based on how high the player has gone
+        if (player.y < highestY) {
+          highestY = player.y;
+          score = -highestY / 10;
+          scoreElement.textContent = `Score: ${Math.floor(score)}`;
+        }
 
-        // Add new platforms at the top
-        while (platforms[platforms.length - 1].y > 0) {
-          platforms.push({
-            x: random(25, canvas.width - 25 - platformWidth),
-            y: platforms[platforms.length - 1].y - (platformHeight + random(minPlatformSpace, maxPlatformSpace))
+        // Game over if player falls off the bottom
+        if (player.y > canvas.height + player.radius) {
+          gameOver();
+          return;
+        }
+
+        // Camera movement when player reaches middle of screen
+        if (player.y < canvas.height / 2 && player.dy < 0) {
+          platforms.forEach(platform => {
+            platform.y += -player.dy;
           });
 
-          // Increase difficulty as player goes higher
-          minPlatformSpace += 0.5;
-          maxPlatformSpace += 0.5;
-          maxPlatformSpace = Math.min(maxPlatformSpace, canvas.height / 2);
-        }
-      } else {
-        player.y += player.dy;
-      }
+          // Move bombs with camera
+          bombs.forEach(bomb => {
+            bomb.y += -player.dy;
+          });
 
-      // Apply drag when no key is pressed
-      if (!keydown) {
-        if (playerDir < 0) {
-          player.dx += drag;
-          if (player.dx > 0) {
-            player.dx = 0;
-            playerDir = 0;
+          // Add new platforms at the top
+          while (platforms[platforms.length - 1].y > 0) {
+            platforms.push({
+              x: random(25, canvas.width - 25 - platformWidth),
+              y: platforms[platforms.length - 1].y - (platformHeight + random(minPlatformSpace, maxPlatformSpace))
+            });
+
+            // Increase difficulty as player goes higher
+            minPlatformSpace += 0.5;
+            maxPlatformSpace += 0.5;
+            maxPlatformSpace = Math.min(maxPlatformSpace, canvas.height / 2);
           }
-        } else if (playerDir > 0) {
-          player.dx -= drag;
-          if (player.dx < 0) {
-            player.dx = 0;
-            playerDir = 0;
+        } else {
+          player.y += player.dy;
+        }
+
+        // Apply drag when no key is pressed
+        if (!keydown) {
+          if (playerDir < 0) {
+            player.dx += drag;
+            if (player.dx > 0) {
+              player.dx = 0;
+              playerDir = 0;
+            }
+          } else if (playerDir > 0) {
+            player.dx -= drag;
+            if (player.dx < 0) {
+              player.dx = 0;
+              playerDir = 0;
+            }
           }
         }
+
+        player.x += player.dx;
+
+        // Screen wrapping
+        if (player.x + player.radius < 0) {
+          player.x = canvas.width + player.radius;
+        } else if (player.x - player.radius > canvas.width) {
+          player.x = -player.radius;
+        }
+
+        // Spawn bombs
+        bombSpawnTimer++;
+        if (bombSpawnTimer >= bombSpawnInterval) {
+          bombSpawnTimer = 0;
+          bombs.push({
+            x: random(bombRadius, canvas.width - bombRadius),
+            y: -bombRadius,
+            dy: random(2, 4)
+          });
+        }
+
+        // Update and draw bombs
+        for (let i = bombs.length - 1; i >= 0; i--) {
+          const bomb = bombs[i];
+          bomb.y += bomb.dy;
+          
+          // Draw bomb
+          context.drawImage(
+            bombImg,
+            bomb.x - bombRadius,
+            bomb.y - bombRadius,
+            bombRadius * 2,
+            bombRadius * 2
+          );
+          
+          // Remove bombs that fall off screen
+          if (bomb.y > canvas.height + bombRadius) {
+            bombs.splice(i, 1);
+          }
+          
+          // Bomb collision with player
+          const dx = player.x - bomb.x;
+          const dy = player.y - bomb.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance < player.radius + bombRadius) {
+            // Player hit by bomb
+            bombs.splice(i, 1);
+            lives--;
+            
+            if (lives >= 0) {
+              livesElement.textContent = '❤️'.repeat(lives);
+            }
+            
+            if (lives <= 0) {
+              gameOver();
+              return;
+            } else {
+              showMathQuestion();
+              return; // Pause game while question is active
+            }
+          }
+        }
+
+        // Draw platforms
+        platforms.forEach(platform => {
+          // Draw platform with texture
+          context.drawImage(platformImg, platform.x, platform.y, platformWidth, platformHeight);
+
+          // Platform collision detection
+          if (
+            player.dy > 0 && // falling
+            prevPlayerY + player.radius <= platform.y && // was above before
+            player.y + player.radius >= platform.y && // now touching platform
+            player.x + player.radius > platform.x &&
+            player.x - player.radius < platform.x + platformWidth
+          ) {
+            player.y = platform.y - player.radius;
+            player.dy = bounceVelocity;
+          }
+        });
+
+        // Draw player (now a circle with face)
+        context.save();
+        context.translate(player.x, player.y);
+        context.rotate(player.dx * 0.05); // Tilt based on movement
+        context.drawImage(
+          playerImg, 
+          -player.radius, 
+          -player.radius, 
+          player.radius * 2, 
+          player.radius * 2
+        );
+        context.restore();
+
+        prevPlayerY = player.y;
+
+        // Remove off-screen platforms
+        platforms = platforms.filter(platform => platform.y < canvas.height);
       }
-
-      player.x += player.dx;
-
-      // Screen wrapping
-      if (player.x + player.radius < 0) {
-        player.x = canvas.width + player.radius;
-      } else if (player.x - player.radius > canvas.width) {
-        player.x = -player.radius;
-      }
-
-      // Draw platforms
-      platforms.forEach(platform => {
-        // Draw platform with texture
-        context.drawImage(platformImg, platform.x, platform.y, platformWidth, platformHeight);
-
-        // Platform collision detection
-        if (
-      player.dy > 0 && // caindo
-      prevPlayerY + player.radius <= platform.y && // estava acima antes
-      player.y + player.radius >= platform.y && // agora tocando a plataforma
-      player.x + player.radius > platform.x &&
-      player.x - player.radius < platform.x + platformWidth
-      ) {
-      player.y = platform.y - player.radius;
-      player.dy = bounceVelocity;
-      }
-      });
-
-      // Draw player (now a circle with face)
-      context.save();
-      context.translate(player.x, player.y);
-      context.rotate(player.dx * 0.05); // Tilt based on movement
-      context.drawImage(
-        playerImg, 
-        -player.radius, 
-        -player.radius, 
-        player.radius * 2, 
-        player.radius * 2
-      );
-      context.restore();
-
-      prevPlayerY = player.y;
-
-      // Remove off-screen platforms
-      platforms = platforms.filter(platform => platform.y < canvas.height);
     }
+
+    // Submit answer handler
+    submitAnswerBtn.addEventListener('click', () => {
+      const userAnswer = parseInt(answerInputElement.value);
+      
+      if (userAnswer === correctAnswer) {
+        score += 10; // Bonus for correct answer
+        scoreElement.textContent = `Score: ${Math.floor(score)}`;
+      } else {
+        // No penalty for wrong answer, just continue
+      }
+      
+      hideMathQuestion();
+    });
+
+    // Also allow Enter key to submit answer
+    answerInputElement.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        submitAnswerBtn.click();
+      }
+    });
 
     // Keyboard controls
     document.addEventListener('keydown', (e) => {
+      if (mathQuestionActive) return;
+      
       if (e.which === 37) { // Left arrow
         keydown = true;
         playerDir = -1;
@@ -367,6 +573,7 @@
 
     // Touch controls for mobile
     leftBtn.addEventListener('touchstart', (e) => {
+      if (mathQuestionActive) return;
       e.preventDefault();
       keydown = true;
       playerDir = -1;
@@ -379,6 +586,7 @@
     });
 
     rightBtn.addEventListener('touchstart', (e) => {
+      if (mathQuestionActive) return;
       e.preventDefault();
       keydown = true;
       playerDir = 1;
@@ -392,6 +600,7 @@
 
     // Mouse controls for testing on desktop
     leftBtn.addEventListener('mousedown', () => {
+      if (mathQuestionActive) return;
       keydown = true;
       playerDir = -1;
       player.dx = -3;
@@ -402,6 +611,7 @@
     });
 
     rightBtn.addEventListener('mousedown', () => {
+      if (mathQuestionActive) return;
       keydown = true;
       playerDir = 1;
       player.dx = 3;
@@ -415,13 +625,7 @@
     restartBtn.addEventListener('click', resetGame);
 
     // Start the game
-    loop(
-
-      score += 0.05, // score sobe com o tempo também
-  scoreElement.textContent = `Score: ${Math.floor(score)}`
-
-
-    );
+    resetGame();
   </script>
 </body>
 </html>
