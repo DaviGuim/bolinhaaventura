@@ -372,16 +372,11 @@
         }
         //mais bomba
         if (score > 100 && maxBombsOnScreen < 5) {
-    maxBombsOnScreen = 5;
-    bombSpawnInterval = 60; // Opcional: aumenta frequência
-}
-if (score > 300 && maxBombsOnScreen < 8) {
-    maxBombsOnScreen = 8;
-    bombSpawnInterval = 40; // Bombas ainda mais frequentes
-}
-if (score > 500 && maxBombsOnScreen < 12) {
-    maxBombsOnScreen = 12; // Modo INSANO
-}
+            maxBombsOnScreen = 5;
+        }
+        if (score > 300 && maxBombsOnScreen < 8) {
+            maxBombsOnScreen = 8;
+        }
 
         // Apply gravity
         player.dy += gravity;
