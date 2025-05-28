@@ -18,15 +18,26 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      
     }
 
-    canvas {
-      border: 3px solid #333;
-      border-radius: 10px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.3);
-     
+    #sky {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to bottom, #87CEEB 0%, #E0F7FA 100%);
+      z-index: -1;
+      overflow: hidden;
     }
+
+    .cloud {
+      position: absolute;
+      background: white;
+      border-radius: 50%;
+      opacity: 0.8;
+    }
+
 
     #controls {
       display: flex;
@@ -144,6 +155,7 @@
   </style>
 </head>
 <body>
+  <div id="sky"></div>
   <div id="score">Score: 0</div>
   <div id="lives">❤️❤️</div>
   <canvas width="375" height="667" id="game"></canvas>
@@ -156,12 +168,69 @@
     <p id="final-score">Score: 0</p>
     <button id="restart-btn">Play Again</button>
     <a href="https://forms.gle/mKLk6BJb2aWG7YdH9" id="form-link2" target="_blank">Avalie nosso jogo</a>
-
   </div>
 
   <a href="https://forms.gle/mKLk6BJb2aWG7YdH9" id="form-link" target="_blank">Avalie nosso jogo</a>
 
   <script>
+    // Cria nuvens dinâmicas
+    function createClouds() {
+      const sky = document.getElementById('sky');
+      const cloudCount = 8;
+      
+      for (let i = 0; i < cloudCount; i++) {
+        const cloud = document.createElement('div');
+        cloud.className = 'cloud';
+        
+        // Tamanho aleatório
+        const size = Math.random() * 100 + 50;
+        const smallSize = size * 0.6;
+        
+        // Posição inicial aleatória
+        const startX = Math.random() * window.innerWidth;
+        const startY = Math.random() * window.innerHeight * 0.7;
+        
+        // Velocidade aleatória
+        const speed = Math.random() * 0.5 + 0.2;
+        
+        cloud.style.width = `${size}px`;
+        cloud.style.height = `${smallSize}px`;
+        cloud.style.left = `${startX}px`;
+        cloud.style.top = `${startY}px`;
+        cloud.style.borderRadius = `${size}px ${size}px ${smallSize}px ${smallSize}px`;
+        
+        // Adiciona sombra para efeito 3D
+        cloud.style.boxShadow = `
+          ${size/3}px ${smallSize/3}px ${size/4}px rgba(0,0,0,0.1),
+          inset ${size/6}px ${smallSize/6}px ${size/8}px rgba(255,255,255,0.8)
+        `;
+        
+        sky.appendChild(cloud);
+        
+        // Anima a nuvem
+        animateCloud(cloud, speed);
+      }
+    }
+    
+    // Animação das nuvens
+    function animateCloud(cloud, speed) {
+      let x = parseInt(cloud.style.left);
+      
+      function move() {
+        x += speed;
+        if (x > window.innerWidth + parseInt(cloud.style.width)) {
+          x = -parseInt(cloud.style.width);
+        }
+        cloud.style.left = `${x}px`;
+        requestAnimationFrame(move);
+      }
+      
+      move();
+    }
+    
+    // Cria as nuvens quando a página carrega
+    window.onload = createClouds;
+
     const canvas = document.getElementById('game');
     const context = canvas.getContext('2d');
     const scoreElement = document.getElementById('score');
@@ -251,6 +320,7 @@
     
     const bombImg = new Image();
     bombImg.src = 'bomba.png';
+
     // Helper functions
     function random(min, max) {
       return Math.random() * (max - min) + min;
@@ -318,182 +388,179 @@
       
       requestAnimationFrame(loop);
       
+      score += 0.05; // score increases over time
+      scoreElement.textContent = `Score: ${Math.floor(score)}`;
+      context.clearRect(0, 0, canvas.width, canvas.height);
       
-        score += 0.05; // score increases over time
-        scoreElement.textContent = `Score: ${Math.floor(score)}`;
-        context.clearRect(0, 0, canvas.width, canvas.height);
-        
-        
-        //mais bomba
-        if (score > 100 && maxBombsOnScreen < 5) {
-            maxBombsOnScreen = 5;
-        }
-        if (score > 200 && maxBombsOnScreen < 8) {
-            maxBombsOnScreen = 8;
-        }
-
-        // Apply gravity
-        player.dy += gravity;
-
-        // Update score based on how high the player has gone
-        if (player.y < highestY) {
-          highestY = player.y;
-          score = -highestY / 10;
-          scoreElement.textContent = `Score: ${Math.floor(score)}`;
-        }
-
-        // Game over if player falls off the bottom
-        if (player.y > canvas.height + player.radius) {
-          gameOver();
-          return;
-        }
-
-        // Camera movement when player reaches middle of screen
-        if (player.y < canvas.height / 2 && player.dy < 0) {
-          platforms.forEach(platform => {
-            platform.y += -player.dy;
-          });
-
-          // Move bombs with camera
-          bombs.forEach(bomb => {
-            bomb.y += -player.dy;
-          });
-
-          // Add new platforms at the top
-          while (platforms[platforms.length - 1].y > 0) {
-            platforms.push({
-              x: random(25, canvas.width - 25 - platformWidth),
-              y: platforms[platforms.length - 1].y - (platformHeight + random(minPlatformSpace, maxPlatformSpace))
-            });
-
-            // Increase difficulty as player goes higher
-            minPlatformSpace += 0.5;
-            maxPlatformSpace += 0.5;
-            maxPlatformSpace = Math.min(maxPlatformSpace, canvas.height / 2);
-          }
-        } else {
-          player.y += player.dy;
-        }
-
-        // Apply drag when no key is pressed
-        if (!keydown) {
-          if (playerDir < 0) {
-            player.dx += drag;
-            if (player.dx > 0) {
-              player.dx = 0;
-              playerDir = 0;
-            }
-          } else if (playerDir > 0) {
-            player.dx -= drag;
-            if (player.dx < 0) {
-              player.dx = 0;
-              playerDir = 0;
-            }
-          }
-        }
-
-        player.x += player.dx;
-
-        // Screen wrapping
-        if (player.x + player.radius < 0) {
-          player.x = canvas.width + player.radius;
-        } else if (player.x - player.radius > canvas.width) {
-          player.x = -player.radius;
-        }
-
-        // Spawn bombs
-        bombSpawnTimer++;
-         if (bombSpawnTimer >= bombSpawnInterval && bombs.length < maxBombsOnScreen) {
-         bombSpawnTimer = 0;
-         bombs.push({
-         x: random(bombRadius, canvas.width - bombRadius),
-         y: -bombRadius,
-        dy: random(2, 4)
-        });
-}
-
-       // Dentro do loop principal, no for que verifica as bombas:
-for (let i = bombs.length - 1; i >= 0; i--) {
-  const bomb = bombs[i];
-  bomb.y += bomb.dy;
-  
-  // Desenha a bomba (mantenha esta parte)
-  context.drawImage(
-    bombImg,
-    bomb.x - bombRadius,
-    bomb.y - bombRadius,
-    bombRadius * 2,
-    bombRadius * 2
-  );
-
-  // --- NOVO BLOCO DE COLISÃO (CORRIGIDO) --- //
-  // Calcula a distância entre jogador e bomba
-  const dx = player.x - bomb.x;
-  const dy = player.y - bomb.y;
-  const distance = Math.sqrt(dx * dx + dy * dy);
-
-  // Verifica colisão
-  if (distance < player.radius + bombRadius) {
-    bombs.splice(i, 1); // Remove a bomba
-    lives--; // Reduz vidas
-    
-    // Atualiza corações (sem valores negativos)
-    livesElement.textContent = '❤️'.repeat(Math.max(0, lives));
-    
-    // Efeito visual: jogador é repelido
-    player.dy = -8;
-    
-    // Game Over se vidas acabarem
-    if (lives < 0) {
-      gameOver();
-      return;
-    }
-  }
-  // --- FIM DO BLOCO --- //
-
-  // Remove bombas que saíram da tela (mantenha esta parte)
-  if (bomb.y > canvas.height + bombRadius) {
-    bombs.splice(i, 1);
-  }
-        }
-
-        // Draw platforms
-        platforms.forEach(platform => {
-          // Draw platform with texture
-          context.drawImage(platformImg, platform.x, platform.y, platformWidth, platformHeight);
-
-          // Platform collision detection
-          if (
-            player.dy > 0 && // falling
-            prevPlayerY + player.radius <= platform.y && // was above before
-            player.y + player.radius >= platform.y && // now touching platform
-            player.x + player.radius > platform.x &&
-            player.x - player.radius < platform.x + platformWidth
-          ) {
-            player.y = platform.y - player.radius;
-            player.dy = bounceVelocity;
-          }
-        });
-
-        // Draw player (now a circle with face)
-        context.save();
-        context.translate(player.x, player.y);
-        context.rotate(player.dx * 0.05); // Tilt based on movement
-        context.drawImage(
-          playerImg, 
-          -player.radius, 
-          -player.radius, 
-          player.radius * 2, 
-          player.radius * 2
-        );
-        context.restore();
-
-        prevPlayerY = player.y;
-
-        // Remove off-screen platforms
-        platforms = platforms.filter(platform => platform.y < canvas.height);
+      //mais bomba
+      if (score > 100 && maxBombsOnScreen < 5) {
+          maxBombsOnScreen = 5;
       }
-    
+      if (score > 200 && maxBombsOnScreen < 8) {
+          maxBombsOnScreen = 8;
+      }
+
+      // Apply gravity
+      player.dy += gravity;
+
+      // Update score based on how high the player has gone
+      if (player.y < highestY) {
+        highestY = player.y;
+        score = -highestY / 10;
+        scoreElement.textContent = `Score: ${Math.floor(score)}`;
+      }
+
+      // Game over if player falls off the bottom
+      if (player.y > canvas.height + player.radius) {
+        gameOver();
+        return;
+      }
+
+      // Camera movement when player reaches middle of screen
+      if (player.y < canvas.height / 2 && player.dy < 0) {
+        platforms.forEach(platform => {
+          platform.y += -player.dy;
+        });
+
+        // Move bombs with camera
+        bombs.forEach(bomb => {
+          bomb.y += -player.dy;
+        });
+
+        // Add new platforms at the top
+        while (platforms[platforms.length - 1].y > 0) {
+          platforms.push({
+            x: random(25, canvas.width - 25 - platformWidth),
+            y: platforms[platforms.length - 1].y - (platformHeight + random(minPlatformSpace, maxPlatformSpace))
+          });
+
+          // Increase difficulty as player goes higher
+          minPlatformSpace += 0.5;
+          maxPlatformSpace += 0.5;
+          maxPlatformSpace = Math.min(maxPlatformSpace, canvas.height / 2);
+        }
+      } else {
+        player.y += player.dy;
+      }
+
+      // Apply drag when no key is pressed
+      if (!keydown) {
+        if (playerDir < 0) {
+          player.dx += drag;
+          if (player.dx > 0) {
+            player.dx = 0;
+            playerDir = 0;
+          }
+        } else if (playerDir > 0) {
+          player.dx -= drag;
+          if (player.dx < 0) {
+            player.dx = 0;
+            playerDir = 0;
+          }
+        }
+      }
+
+      player.x += player.dx;
+
+      // Screen wrapping
+      if (player.x + player.radius < 0) {
+        player.x = canvas.width + player.radius;
+      } else if (player.x - player.radius > canvas.width) {
+        player.x = -player.radius;
+      }
+
+      // Spawn bombs
+      bombSpawnTimer++;
+      if (bombSpawnTimer >= bombSpawnInterval && bombs.length < maxBombsOnScreen) {
+        bombSpawnTimer = 0;
+        bombs.push({
+          x: random(bombRadius, canvas.width - bombRadius),
+          y: -bombRadius,
+          dy: random(2, 4)
+        });
+      }
+
+      // Dentro do loop principal, no for que verifica as bombas:
+      for (let i = bombs.length - 1; i >= 0; i--) {
+        const bomb = bombs[i];
+        bomb.y += bomb.dy;
+        
+        // Desenha a bomba (mantenha esta parte)
+        context.drawImage(
+          bombImg,
+          bomb.x - bombRadius,
+          bomb.y - bombRadius,
+          bombRadius * 2,
+          bombRadius * 2
+        );
+
+        // --- NOVO BLOCO DE COLISÃO (CORRIGIDO) --- //
+        // Calcula a distância entre jogador e bomba
+        const dx = player.x - bomb.x;
+        const dy = player.y - bomb.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // Verifica colisão
+        if (distance < player.radius + bombRadius) {
+          bombs.splice(i, 1); // Remove a bomba
+          lives--; // Reduz vidas
+          
+          // Atualiza corações (sem valores negativos)
+          livesElement.textContent = '❤️'.repeat(Math.max(0, lives));
+          
+          // Efeito visual: jogador é repelido
+          player.dy = -8;
+          
+          // Game Over se vidas acabarem
+          if (lives < 0) {
+            gameOver();
+            return;
+          }
+        }
+        // --- FIM DO BLOCO --- //
+
+        // Remove bombas que saíram da tela (mantenha esta parte)
+        if (bomb.y > canvas.height + bombRadius) {
+          bombs.splice(i, 1);
+        }
+      }
+
+      // Draw platforms
+      platforms.forEach(platform => {
+        // Draw platform with texture
+        context.drawImage(platformImg, platform.x, platform.y, platformWidth, platformHeight);
+
+        // Platform collision detection
+        if (
+          player.dy > 0 && // falling
+          prevPlayerY + player.radius <= platform.y && // was above before
+          player.y + player.radius >= platform.y && // now touching platform
+          player.x + player.radius > platform.x &&
+          player.x - player.radius < platform.x + platformWidth
+        ) {
+          player.y = platform.y - player.radius;
+          player.dy = bounceVelocity;
+        }
+      });
+
+      // Draw player (now a circle with face)
+      context.save();
+      context.translate(player.x, player.y);
+      context.rotate(player.dx * 0.05); // Tilt based on movement
+      context.drawImage(
+        playerImg, 
+        -player.radius, 
+        -player.radius, 
+        player.radius * 2, 
+        player.radius * 2
+      );
+      context.restore();
+
+      prevPlayerY = player.y;
+
+      // Remove off-screen platforms
+      platforms = platforms.filter(platform => platform.y < canvas.height);
+    }
 
     // Keyboard controls
     document.addEventListener('keydown', (e) => {
