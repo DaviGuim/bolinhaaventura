@@ -38,7 +38,6 @@
       opacity: 0.8;
     }
 
-
     #controls {
       display: flex;
       justify-content: center;
@@ -114,12 +113,20 @@
       border-radius: 10px;
       text-align: center;
       display: none;
+      z-index: 100;
+    }
+
+    #question-text {
+      margin-bottom: 15px;
+      font-size: 18px;
     }
 
     #answer-input {
       padding: 8px;
       margin: 10px 0;
       width: 100px;
+      font-size: 16px;
+      text-align: center;
     }
 
     #submit-answer {
@@ -129,6 +136,7 @@
       padding: 8px 16px;
       border-radius: 5px;
       cursor: pointer;
+      font-size: 16px;
     }
 
     #form-link {
@@ -168,6 +176,12 @@
     <p id="final-score">Score: 0</p>
     <button id="restart-btn">Play Again</button>
     <a href="https://forms.gle/mKLk6BJb2aWG7YdH9" id="form-link2" target="_blank">Avalie nosso jogo</a>
+  </div>
+
+  <div id="math-question">
+    <div id="question-text"></div>
+    <input type="number" id="answer-input" placeholder="Resposta">
+    <button id="submit-answer">Responder</button>
   </div>
 
   <a href="https://forms.gle/mKLk6BJb2aWG7YdH9" id="form-link" target="_blank">Avalie nosso jogo</a>
@@ -241,12 +255,18 @@
     const leftBtn = document.getElementById('left-btn');
     const rightBtn = document.getElementById('right-btn');
     const formLink = document.getElementById('form-link');
+    const mathQuestionElement = document.getElementById('math-question');
+    const questionTextElement = document.getElementById('question-text');
+    const answerInputElement = document.getElementById('answer-input');
+    const submitAnswerBtn = document.getElementById('submit-answer');
 
     // Game state
     let score = 0;
     let highestY = 0;
     let gameRunning = true;
     let lives = 2;
+    let mathQuestionActive = false;
+    let correctAnswer = null;
 
     // Platform settings
     const platformWidth = 60;
@@ -303,10 +323,6 @@
     const bombSpawnInterval = 40; // frames between bomb spawns
     let maxBombsOnScreen = 3;
 
-    // Current math question
-    let currentQuestion = null;
-    let correctAnswer = null;
-
     // Player direction and key state
     let playerDir = 0;
     let keydown = false;
@@ -341,6 +357,7 @@
       gameOverElement.style.display = 'none';
       gameRunning = true;
       mathQuestionActive = false;
+      mathQuestionElement.style.display = 'none';
       
       // Reset platforms
       platforms = [{
@@ -380,6 +397,103 @@
       maxPlatformSpace = 20;
       
       loop();
+    }
+
+    function generateMathQuestion() {
+      const questionTypes = ['media', 'area'];
+      const type = questionTypes[Math.floor(Math.random() * questionTypes.length)];
+      
+      if (type === 'media') {
+        const numCount = 3 + Math.floor(Math.random() * 3); // 3 a 5 números
+        const numbers = [];
+        let sum = 0;
+        
+        for (let i = 0; i < numCount; i++) {
+          const num = 2 + Math.floor(Math.random() * 10); // Números entre 2 e 11
+          numbers.push(num);
+          sum += num;
+        }
+        
+        const answer = Math.round((sum / numCount) * 10) / 10; // Arredonda para 1 casa decimal
+        
+        return {
+          question: `Qual é a média de ${numbers.join(', ')}?`,
+          answer: answer.toString()
+        };
+      } 
+      else { // Área
+        const shapes = [
+          { name: 'quadrado', calc: (a) => a * a, param: 2 + Math.floor(Math.random() * 9) }, // lado 2-10
+          { name: 'retângulo', calc: (a, b) => a * b, params: [2 + Math.floor(Math.random() * 8), 3 + Math.floor(Math.random() * 8)] }, // lados 2-9 e 3-10
+          { name: 'triângulo', calc: (a, b) => (a * b) / 2, params: [3 + Math.floor(Math.random() * 8), 4 + Math.floor(Math.random() * 8)] }, // base 3-10, altura 4-11
+          { name: 'círculo', calc: (r) => Math.round(Math.PI * r * r), param: 2 + Math.floor(Math.random() * 5) } // raio 2-6
+        ];
+        
+        const shape = shapes[Math.floor(Math.random() * shapes.length)];
+        
+        let question, answer;
+        
+        if (shape.name === 'quadrado') {
+          question = `Qual a área de um quadrado com lado ${shape.param}?`;
+          answer = shape.calc(shape.param);
+        } 
+        else if (shape.name === 'retângulo') {
+          question = `Qual a área de um retângulo com lados ${shape.params[0]} e ${shape.params[1]}?`;
+          answer = shape.calc(shape.params[0], shape.params[1]);
+        }
+        else if (shape.name === 'triângulo') {
+          question = `Qual a área de um triângulo com base ${shape.params[0]} e altura ${shape.params[1]}?`;
+          answer = shape.calc(shape.params[0], shape.params[1]);
+        }
+        else { // círculo
+          question = `Qual a área de um círculo com raio ${shape.param}? (arredonde para inteiro)`;
+          answer = shape.calc(shape.param);
+        }
+        
+        return {
+          question: question,
+          answer: answer.toString()
+        };
+      }
+    }
+
+    function showMathQuestion() {
+      mathQuestionActive = true;
+      gameRunning = false;
+      
+      const questionData = generateMathQuestion();
+      questionTextElement.textContent = questionData.question;
+      correctAnswer = questionData.answer;
+      answerInputElement.value = '';
+      
+      mathQuestionElement.style.display = 'block';
+      answerInputElement.focus();
+    }
+
+    function checkAnswer() {
+      const userAnswer = answerInputElement.value.trim();
+      
+      if (userAnswer === correctAnswer) {
+        // Resposta correta - mantém a vida
+        mathQuestionElement.style.display = 'none';
+        mathQuestionActive = false;
+        gameRunning = true;
+        loop();
+      } else {
+        // Resposta incorreta - perde vida
+        lives--;
+        livesElement.textContent = '❤️'.repeat(Math.max(0, lives));
+        
+        mathQuestionElement.style.display = 'none';
+        mathQuestionActive = false;
+        
+        if (lives < 0) {
+          gameOver();
+        } else {
+          gameRunning = true;
+          loop();
+        }
+      }
     }
 
     // Game loop
@@ -503,19 +617,14 @@
         // Verifica colisão
         if (distance < player.radius + bombRadius) {
           bombs.splice(i, 1); // Remove a bomba
-          lives--; // Reduz vidas
           
-          // Atualiza corações (sem valores negativos)
-          livesElement.textContent = '❤️'.repeat(Math.max(0, lives));
+          // Mostra pergunta matemática em vez de perder vida imediatamente
+          if (!mathQuestionActive) {
+            showMathQuestion();
+          }
           
           // Efeito visual: jogador é repelido
           player.dy = -8;
-          
-          // Game Over se vidas acabarem
-          if (lives < 0) {
-            gameOver();
-            return;
-          }
         }
         // --- FIM DO BLOCO --- //
 
@@ -561,6 +670,14 @@
       // Remove off-screen platforms
       platforms = platforms.filter(platform => platform.y < canvas.height);
     }
+
+    // Event listeners
+    submitAnswerBtn.addEventListener('click', checkAnswer);
+    answerInputElement.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        checkAnswer();
+      }
+    });
 
     // Keyboard controls
     document.addEventListener('keydown', (e) => {
